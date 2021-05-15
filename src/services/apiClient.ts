@@ -1,3 +1,3 @@
-import { setupApiClient } from "./api";
+import { setupAPIClient } from "./api";
 
-export const api = setupApiClient();
+export const api = setupAPIClient();

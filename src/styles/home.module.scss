@@ -5,6 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
 
   form {
     width: 100%;
@@ -29,16 +30,17 @@
         margin-top: 0.5rem;
       }
     }
+  }
 
-    button {
-      width: 100%;
-      height: 56px;
-      background: var(--purple-300);
-      margin-top: 1rem;
-      font-size: 1.2rem;
-      border: 0;
-      border-radius: 0.5rem;
-      padding: 1rem;
-    }
+  button {
+    width: 100%;
+    height: 56px;
+    background: var(--purple-300);
+    margin-top: 1rem;
+    font-size: 1.2rem;
+    border: 0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    max-width: 418px;
   }
 }

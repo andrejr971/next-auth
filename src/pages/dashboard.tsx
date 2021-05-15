@@ -1,37 +1,38 @@
-import { destroyCookie } from "nookies";
-import { useEffect } from "react";
-import { useAuth } from "../contexts/AuthContext";
-import { setupApiClient } from "../services/api";
-import { api } from "../services/apiClient";
-import { AuthTokenError } from "../services/errors/AuthTokenError";
+import { useContext, useEffect } from "react"
 
-import styles from '../styles/home.module.scss'
-import { withSSRAuth } from "../utils/withSSRAuth";
+import { AuthContext } from "../contexts/AuthContext"
+import { setupAPIClient } from "../services/api";
+import { api } from "../services/apiClient";
+import { withSSRAuth } from "../utils/withSSRAuth"
+import { Can } from "../components/Can";
+import styles from '../styles/home.module.scss';
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, signOut } = useContext(AuthContext)
 
   useEffect(() => {
-    api.get('me').then(response => {
-      console.log(response.data)
-    }).catch(err => {
-      console.log(err)
-    });
-  }, []);
+    api.get('/me')
+      .then(response => console.log(response))
+  }, [])
 
   return (
-    <div className={styles.container}>
+    <div  className={styles.container}>
       <h1>Dashboard: {user?.email}</h1>
+
+      <button onClick={signOut}>Sign out</button>
+
+      <Can permissions={['metrics.list']}>
+        <div>Métricas</div>
+      </Can>
     </div>
-  );
+  )
 }
 
 export const getServerSideProps = withSSRAuth(async (ctx) => {
-  const apiClient = setupApiClient(ctx);
+  const apiClient = setupAPIClient(ctx);
+  const response = await apiClient.get('/me');
 
-  const { data } = await apiClient.get('/me');
-
-  console.log(data)
+  console.log(response.data)
 
   return {
     props: {}

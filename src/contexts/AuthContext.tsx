@@ -1,90 +1,114 @@
-import { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import Router from "next/router";
-import { setCookie, parseCookies, destroyCookie } from 'nookies';
+import { createContext, ReactNode, useEffect, useState } from "react";
+import { setCookie, parseCookies, destroyCookie } from 'nookies' 
+import Router from 'next/router'
+
 import { api } from "../services/apiClient";
 
-type ICredentential = {
+type User = {
+  email: string;
+  permissions: string[];
+  roles: string[];
+};
+
+type SignInCredentials = {
   email: string;
   password: string;
 }
+
+type AuthContextData = {
+  signIn: (credentials: SignInCredentials) => Promise<void>;
+  signOut: () => void;
+  user: User;
+  isAuthenticated: boolean;
+};
 
 type AuthProviderProps = {
   children: ReactNode;
 }
 
-type IUser = {
-  email: string;
-  permissions: string[];
-  roles: string[];
-}
+export const AuthContext = createContext({} as AuthContextData)
 
-type IAuthContextData = {
-  signIn(credentials: ICredentential): Promise<void>;
-  isAuthenticated: boolean;
-  user: IUser;
-}
-
-const AuthContext = createContext({} as IAuthContextData);
+let authChannel: BroadcastChannel
 
 export function signOut() {
-  destroyCookie(undefined, 'nextauth.token');
-  destroyCookie(undefined, 'nextauth.refreshToken');
+  destroyCookie(undefined, 'nextauth.token')
+  destroyCookie(undefined, 'nextauth.refreshToken')
+
+  authChannel.postMessage('signOut');
+
   Router.push('/')
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<IUser>({} as IUser);
+  const [user, setUser] = useState<User>();
+  const isAuthenticated = !!user;
 
   useEffect(() => {
-    const { 'nextauth.token': token } = parseCookies();
-    if (token) {
-      api.get('me').then(response => {
-        setUser(response.data)
-      }).catch(err => {
-        signOut();
-      });
-    }
-  }, []);
+    authChannel = new BroadcastChannel('auth')
 
-  async function signIn({ email, password }: ICredentential) {
+    authChannel.onmessage = (message) => {
+      switch (message.data) {
+        case 'signOut':
+          signOut();
+          break;
+        default:
+          break;
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const { 'nextauth.token': token } = parseCookies()
+
+    if (token) {
+      api.get('/me')
+        .then(response => {
+          const { email, permissions, roles } = response.data
+
+          setUser({ email, permissions, roles })
+        })
+        .catch(() => {
+          signOut();
+        })
+    }
+  }, [])
+
+  async function signIn({ email, password }: SignInCredentials) {
     try {
-      const response = await api.post('sessions', { email, password });
+      const response = await api.post('sessions', {
+        email,
+        password,
+      })
 
       const { token, refreshToken, permissions, roles } = response.data;
 
       setCookie(undefined, 'nextauth.token', token, {
         maxAge: 60 * 60 * 24 * 30, // 30 days
         path: '/'
-      });
+      })
 
       setCookie(undefined, 'nextauth.refreshToken', refreshToken, {
         maxAge: 60 * 60 * 24 * 30, // 30 days
         path: '/'
-      });
+      })
 
       setUser({
         email,
         permissions,
-        roles
-      });
+        roles,
+      })
 
-      api.defaults.headers['Authorization'] =  `Bearer ${token}`;
+      api.defaults.headers['Authorization'] = `Bearer ${token}`;
 
-      Router.push('/dashboard')
+      Router.push('/dashboard');
     } catch (err) {
-      alert(err.message);
+      console.log(err);
     }
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      signIn,
-      isAuthenticated: !!user,
-      user
-    }}>
+    <AuthContext.Provider value={{ signIn, signOut, isAuthenticated, user }}>
       {children}
     </AuthContext.Provider>
   )
 }
-
-export const useAuth = () => useContext(AuthContext); 
